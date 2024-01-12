@@ -1,9 +1,8 @@
 mod utils;
 
-use std::{fmt, path::PathBuf, fs::File, io::{self, Write}};
+use std::{fmt, path::PathBuf, fs::File, io::{self, Write}, ops};
 
-/// Standard Pixel struct, contains r, g, b
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Pixel {
     pub r: u8,
     pub g: u8,
@@ -18,26 +17,25 @@ pub struct Coord {
 
 impl Coord { pub fn new(x: usize, y:usize) -> Self { Self { x, y } }}
 
-
 impl Pixel {
     pub const BLACK: Self  = Self::new(0, 0, 0); 
+    pub const UNIT: Self  = Self::new(1, 1, 1); 
     pub const WHITE: Self  = Self::new(255, 255, 255);
     pub const RED: Self    = Self::new(255, 0, 0); 
     pub const GREEN: Self  = Self::new(0, 255, 0); 
     pub const BLUE: Self   = Self::new(0, 0, 255); 
     pub const PURPLE: Self = Self::new(255, 0, 255);
 
-    const fn new(r: u8, g: u8, b: u8) -> Self { 
+    pub const fn new(r: u8, g: u8, b: u8) -> Self { 
         Self { r, g, b }
     }
 }
 
-trait PpmFormat {
+pub trait PpmFormat {
     fn save_to_file(self, filepath: impl Into<PathBuf>) -> io::Result<()>;
 }
 
-
-struct ImagePPM {
+pub struct ImagePPM {
     pixels: Vec<Pixel>,
     width: usize,
     height: usize,
@@ -86,6 +84,18 @@ impl fmt::Display for ImagePPM {
     }
 }
 
+impl ops::Mul<u8> for Pixel {
+    type Output = Self;
+
+    fn mul(self, rhs: u8) -> Self::Output {
+        Self {
+            r : self.r * rhs,
+            g : self.g * rhs,
+            b : self.b * rhs,
+        }
+    }
+}
+
 #[test]
 fn bare_basics() {
     use crate::ImagePPM;
@@ -127,6 +137,8 @@ r#"P3
 
 #[test]
 fn color_square() {
+    use utils::idx_to_coords;
+
     let mut sq = ImagePPM::new(255, 255, Pixel::BLACK);
     for (i, pixel) in sq.pixels.iter_mut().enumerate() {
         let Coord { x, y } = idx_to_coords(i, sq.width);
