@@ -1,8 +1,6 @@
 mod utils;
 
-use std::{fmt, mem, ops::{Index, IndexMut}, path::{Path, PathBuf}, fs::File, io::{self, Write}};
-
-use utils::idx_to_coords;
+use std::{fmt, path::PathBuf, fs::File, io::{self, Write}};
 
 /// Standard Pixel struct, contains r, g, b
 #[derive(Clone, Copy)]
@@ -13,12 +11,12 @@ pub struct Pixel {
 }
 
 #[derive(Clone, Copy)]
-struct Coord {
-    x: usize,
-    y: usize
+pub struct Coord {
+    pub x: usize,
+    pub y: usize
 }
 
-impl Coord { fn new(x: usize, y:usize) -> Self { Self { x, y } }}
+impl Coord { pub fn new(x: usize, y:usize) -> Self { Self { x, y } }}
 
 
 impl Pixel {
@@ -46,16 +44,20 @@ struct ImagePPM {
 }
 
 impl ImagePPM {
-    fn new(width: usize, height: usize, bg_color: Pixel) -> Self {
+    pub fn new(width: usize, height: usize, bg_color: Pixel) -> Self {
         Self { width, height, pixels: vec![bg_color; width*height], }
     }
-    fn get(&self, index: Coord) -> &Pixel {
-        let i = index.x + (self.height - index.y - 1)*self.width;
-        &self.pixels[i]
+    /// Get value of pixel at coordinates (bottom left is (0, 0)). None value means it was OOB
+    pub fn get(&self, x: usize, y: usize) -> Option<&Pixel> {
+        if x >= self.width || y >= self.height { return None; }
+        let i = x + (self.height - y - 1)*self.width;
+        Some(&self.pixels[i])
     }
-    fn get_mut(&mut self, index: Coord) -> &mut Pixel {
-        let i = index.x + (self.height - index.y - 1)*self.width;
-        &mut self.pixels[i]
+    /// Get mutable access to pixel at coordinates (bottom left is (0, 0)). None value means it was OOB
+    pub fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Pixel> {
+        if x >= self.width || y >= self.height { return None; }
+        let i = x + (self.height - y - 1)*self.width;
+        Some(&mut self.pixels[i])
     }
 }
 
@@ -66,22 +68,6 @@ impl PpmFormat for ImagePPM {
         Ok(())
     }
 }
-
-//impl Index<Coord> for ImagePPM {
-//    type Output = Pixel;
-//
-//    fn index(&self, index: Coord) -> &Self::Output {
-//        let i = index.x + (self.height - index.y - 1)*self.width;
-//        &self.pixels[i]
-//    }
-//}
-//
-//impl IndexMut<Coord> for ImagePPM {
-//    fn index_mut(&mut self, index: Coord) -> &mut Self::Output {
-//        let i = index.x + (self.height - index.y - 1)*self.width;
-//        &mut self.pixels[i]
-//    }
-//}
 
 impl fmt::Display for ImagePPM {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -105,31 +91,20 @@ fn bare_basics() {
     use crate::ImagePPM;
 
     let mut dot: ImagePPM = ImagePPM::new(3, 3, Pixel::PURPLE);
-    dot[Coord::new(0, 0)] = Pixel::WHITE;
-    println!("{dot}");
-    dot[Coord::new(1, 0)] = Pixel::WHITE;
-    println!("{dot}");
-    dot[Coord::new(2, 0)] = Pixel::WHITE;
-    println!("{dot}");
+    *dot.get_mut(0, 0).unwrap() = Pixel::WHITE;
+    *dot.get_mut(1, 0).unwrap() = Pixel::WHITE;
+    *dot.get_mut(2, 0).unwrap() = Pixel::WHITE;
 
-    dot[Coord::new(0, 1)] = Pixel::WHITE;
-    println!("{dot}");
-    dot[Coord::new(0, 2)] = Pixel::WHITE;
-    println!("{dot}");
+    *dot.get_mut(0, 1).unwrap() = Pixel::WHITE;
+    *dot.get_mut(0, 2).unwrap() = Pixel::WHITE;
 
+    *dot.get_mut(0, 1).unwrap() = Pixel::WHITE;
+    *dot.get_mut(2, 1).unwrap() = Pixel::WHITE;
 
-    dot[Coord::new(0, 1)] = Pixel::WHITE;
-    println!("{dot}");
-    dot[Coord::new(2, 1)] = Pixel::WHITE;
-    println!("{dot}");
+    *dot.get_mut(1, 1).unwrap() = Pixel::BLACK;
 
-    dot[Coord::new(1, 1)] = Pixel::BLACK;
-    println!("{dot}");
-
-    dot[Coord::new(2, 2)] = Pixel::WHITE;
-    dot[Coord::new(1, 2)] = Pixel::WHITE;
-    println!("{dot}");
-
+    *dot.get_mut(2, 2).unwrap() = Pixel::WHITE;
+    *dot.get_mut(1, 2).unwrap() = Pixel::WHITE;
 
     println!("{dot}");
 
