@@ -1,7 +1,8 @@
 mod utils;
 
-use std::{fmt, path::PathBuf, fs::File, io::{self, Write}, ops};
+use std::{fmt, fs::File, io::{self, Write}, ops::{self, Add, Sub}, path::PathBuf};
 
+/// Basic RGB Pixel struct
 #[derive(Clone, Copy, Debug)]
 pub struct Pixel {
     pub r: u8,
@@ -9,13 +10,35 @@ pub struct Pixel {
     pub b: u8
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Coord {
     pub x: usize,
     pub y: usize
 }
 
-impl Coord { pub fn new(x: usize, y:usize) -> Self { Self { x, y } }}
+impl Coord {
+    pub fn new(x: usize, y:usize) -> Self { Self { x, y } }
+    pub fn abs(&self) -> f64 { ((self.x*self.x + self.y*self.y) as f64).sqrt() }
+    pub fn distance(&self, rhs: Self) -> f64 {
+        let ax = self.x as isize;
+        let ay = self.y as isize;
+        let bx = rhs.x as isize;
+        let by = rhs.y as isize;
+
+        let dx = (ax-bx).abs() as usize;
+        let dy = (ay-by).abs() as usize;
+        Coord::new(dx, dy).abs()
+    }
+}
+
+impl Add for Coord {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output { Self { x: self.x + rhs.x, y: self.y + rhs.y, } }
+}
+impl Sub for Coord {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output { Self { x: self.x - rhs.x, y: self.y - rhs.y, } }
+}
 
 impl Pixel {
     pub const BLACK: Self  = Self::new(0, 0, 0); 
@@ -35,6 +58,7 @@ pub trait PpmFormat {
     fn save_to_file(self, filepath: impl Into<PathBuf>) -> io::Result<()>;
 }
 
+/// Basic image file type
 pub struct ImagePPM {
     pixels: Vec<Pixel>,
     width: usize,
@@ -57,6 +81,26 @@ impl ImagePPM {
         let i = x + (self.height - y - 1)*self.width;
         Some(&mut self.pixels[i])
     }
+    pub fn draw_line(&mut self, a: Coord, b: Coord, col: Pixel) {
+        let (ax, ay, bx, by) = (a.x as f64, a.y as f64, b.x as f64, b.y as f64);
+        let dist = ((ax-bx)*(ax-bx) + (ay-by)*(ay-by)).sqrt();
+        let mut t = 0.0;
+        while t <= dist {
+            let x = ax + (bx - ax)*(t/dist);
+            let y = ay + (by - ay)*(t/dist);
+            *self.get_mut(x as usize, y as usize).unwrap() = col;
+            t += 1.0;
+        }
+
+        *self.get_mut(b.x, b.y).unwrap() = col;
+    }
+    pub fn draw_circle(&mut self, center: Coord, radius: usize) {
+        todo!()
+    }
+}
+
+fn lerp(a: usize, b: usize, t: usize) -> usize {
+    a*(1 - t) + b*t
 }
 
 impl PpmFormat for ImagePPM {
