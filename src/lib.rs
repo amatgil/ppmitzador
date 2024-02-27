@@ -94,8 +94,17 @@ impl ImagePPM {
 
         *self.get_mut(b.x, b.y).unwrap() = col;
     }
-    pub fn draw_circle(&mut self, center: Coord, radius: usize) {
-        todo!()
+    pub fn draw_circle(&mut self, center: Coord, radius: usize, col: Pixel) {
+        // Dumb implementation, looks at the whole grid every time. This computation time is
+        // trivial compared to saving the file out, so I don't care
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let p = Coord {x, y};
+                if p.distance(center) < radius as f64 {
+                    *self.get_mut(x, y).unwrap() = col;
+                }
+            }
+        }
     }
 }
 
