@@ -94,15 +94,31 @@ impl ImagePPM {
 
         *self.get_mut(b.x, b.y).unwrap() = col;
     }
+    pub fn draw_line_with_thickness(&mut self, a: Coord, b: Coord, col: Pixel, thickness: usize) {
+        let (ax, ay, bx, by) = (a.x as f64, a.y as f64, b.x as f64, b.y as f64);
+        let dist = ((ax-bx)*(ax-bx) + (ay-by)*(ay-by)).sqrt();
+        let mut t = 0.0;
+        while t <= dist {
+            let x = ax + (bx - ax)*(t/dist);
+            let y = ay + (by - ay)*(t/dist);
+            //*self.get_mut(x as usize, y as usize).unwrap() = col;
+            self.draw_circle(Coord { x: x as usize, y: y as usize }, thickness, col);
+            t += 1.0;
+        }
+
+        *self.get_mut(b.x, b.y).unwrap() = col;
+    }
+    /// Draw a circle (taxicab distance metric). Assumes that it will fit, will likely panic if it
+    /// doesn't
     pub fn draw_circle(&mut self, center: Coord, radius: usize, col: Pixel) {
-        // Dumb implementation, looks at the whole grid every time. This computation time is
-        // trivial compared to saving the file out, so I don't care
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let p = Coord {x, y};
-                if p.distance(center) < radius as f64 {
-                    *self.get_mut(x, y).unwrap() = col;
-                }
+        let r = radius as isize / 2;
+        for dx in -r..r {
+            for dy in -r..r {
+                let c = Coord {
+                    x: (center.x as isize+ dx).max(0) as usize,
+                    y: (center.y as isize + dy).max(0) as usize,
+                };
+                *self.get_mut(c.x, c.y).unwrap() = col;
             }
         }
     }
