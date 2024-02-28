@@ -124,8 +124,68 @@ impl ImagePPM {
     }
 }
 
-fn lerp(a: usize, b: usize, t: usize) -> usize {
-    a*(1 - t) + b*t
+pub struct ImagePBM {
+    /// False for background (black), true for foreground (white)
+    pixels: Vec<bool>,
+    width: usize,
+    height: usize,
+}
+
+
+impl ImagePBM {
+    pub fn new(width: usize, height: usize) -> Self { Self { width, height, pixels: vec![false; width*height], } }
+    /// Get value of pixel at coordinates (bottom left is (0, 0)). None value means it was OOB
+    pub fn get(&self, x: usize, y: usize) -> Option<bool> {
+        if x >= self.width || y >= self.height { return None; }
+        let i = x + (self.height - y - 1)*self.width;
+        Some(self.pixels[i])
+    }
+    /// Get mutable access to pixel at coordinates (bottom left is (0, 0)). None value means it was OOB
+    pub fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut bool> {
+        if x >= self.width || y >= self.height { return None; }
+        let i = x + (self.height - y - 1)*self.width;
+        Some(&mut self.pixels[i])
+    }
+    pub fn draw_line(&mut self, a: Coord, b: Coord, col: bool) {
+        let (ax, ay, bx, by) = (a.x as f64, a.y as f64, b.x as f64, b.y as f64);
+        let dist = ((ax-bx)*(ax-bx) + (ay-by)*(ay-by)).sqrt();
+        let mut t = 0.0;
+        while t <= dist {
+            let x = ax + (bx - ax)*(t/dist);
+            let y = ay + (by - ay)*(t/dist);
+            *self.get_mut(x as usize, y as usize).unwrap() = col;
+            t += 1.0;
+        }
+
+        *self.get_mut(b.x, b.y).unwrap() = col;
+    }
+    pub fn draw_line_with_thickness(&mut self, a: Coord, b: Coord, col: bool, thickness: usize) {
+        let (ax, ay, bx, by) = (a.x as f64, a.y as f64, b.x as f64, b.y as f64);
+        let dist = ((ax-bx)*(ax-bx) + (ay-by)*(ay-by)).sqrt();
+        let mut t = 0.0;
+        while t <= dist {
+            let x = ax + (bx - ax)*(t/dist);
+            let y = ay + (by - ay)*(t/dist);
+            self.draw_circle(Coord { x: x as usize, y: y as usize }, thickness, col);
+            t += 1.0;
+        }
+
+        *self.get_mut(b.x, b.y).unwrap() = col;
+    }
+    /// Draw a circle (taxicab distance metric). Assumes that it will fit, will likely panic if it
+    /// doesn't
+    pub fn draw_circle(&mut self, center: Coord, radius: usize, col: bool) {
+        let r = radius as isize / 2;
+        for dx in -r..r {
+            for dy in -r..r {
+                let c = Coord {
+                    x: (center.x as isize+ dx).max(0) as usize,
+                    y: (center.y as isize + dy).max(0) as usize,
+                };
+                *self.get_mut(c.x, c.y).unwrap() = col;
+            }
+        }
+    }
 }
 
 impl PpmFormat for ImagePPM {
@@ -153,6 +213,18 @@ impl fmt::Display for ImagePPM {
     }
 }
 
+impl fmt::Display for ImagePBM {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out = String::with_capacity(self.width * self.height);
+        out.push_str("P1\n");
+        out.push_str(&format!("{} {}\n", self.width, self.height));
+
+        for pixel in &self.pixels { out.push_str(&format!("{}", *pixel as usize)); }
+
+        write!(f, "{}", out)
+    }
+}
+
 impl ops::Mul<u8> for Pixel {
     type Output = Self;
 
@@ -162,6 +234,14 @@ impl ops::Mul<u8> for Pixel {
             g : self.g * rhs,
             b : self.b * rhs,
         }
+    }
+}
+
+impl PpmFormat for ImagePBM {
+    fn save_to_file(self, filepath: impl Into<PathBuf>) -> io::Result<()> {
+        let mut file = File::create(filepath.into())?;
+        file.write_all(format!("{}", self).as_bytes())?;
+        Ok(())
     }
 }
 
@@ -216,5 +296,13 @@ fn color_square() {
     }
 
     sq.save_to_file("test_outputs/TEST_color_wheel.ppm").unwrap();
+
+}
+#[test]
+fn bw_square() {
+    let mut sq = ImagePBM::new(255, 255);
+    sq.draw_circle(Coord { x: 100, y: 100 }, 30, true);
+
+    sq.save_to_file("test_outputs/TEST_bw_square.pbm").unwrap();
 
 }
