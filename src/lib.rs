@@ -133,7 +133,7 @@ pub struct ImagePBM {
 
 
 impl ImagePBM {
-    pub fn new(width: usize, height: usize) -> Self { Self { width, height, pixels: vec![false; width*height], } }
+    pub fn new(width: usize, height: usize, val: bool) -> Self { Self { width, height, pixels: vec![val; width*height], } }
     /// Get value of pixel at coordinates (bottom left is (0, 0)). None value means it was OOB
     pub fn get(&self, x: usize, y: usize) -> Option<bool> {
         if x >= self.width || y >= self.height { return None; }
@@ -219,7 +219,7 @@ impl fmt::Display for ImagePBM {
         out.push_str("P1\n");
         out.push_str(&format!("{} {}\n", self.width, self.height));
 
-        for pixel in &self.pixels { out.push_str(&format!("{}", *pixel as usize)); }
+        for pixel in &self.pixels { out.push_str(&format!("{}", !pixel as usize)); }
 
         write!(f, "{}", out)
     }
@@ -300,7 +300,7 @@ fn color_square() {
 }
 #[test]
 fn bw_square() {
-    let mut sq = ImagePBM::new(255, 255);
+    let mut sq = ImagePBM::new(255, 255, false);
     sq.draw_circle(Coord { x: 100, y: 100 }, 30, true);
 
     sq.save_to_file("test_outputs/TEST_bw_square.pbm").unwrap();
