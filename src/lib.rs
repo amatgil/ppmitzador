@@ -220,6 +220,7 @@ impl fmt::Display for ImagePBM {
         out.push_str(&format!("{} {}\n", self.width, self.height));
 
         for pixel in &self.pixels { out.push_str(&format!("{}", !pixel as usize)); }
+        out.push('\n');
 
         write!(f, "{}", out)
     }
