@@ -1,5 +1,5 @@
 pub mod utils;
-use std::{fmt::{self, Display}, fs::File, io::Write, ops::{self, Add, Sub}, path::PathBuf};
+use std::{fs::File, io::{BufWriter, Write}, ops::{self, Add, Sub}, path::PathBuf};
 
 /// Basic RGB Pixel struct
 #[derive(Clone, Copy, Debug)]
@@ -52,7 +52,7 @@ impl Pixel {
     pub const fn new(r: u8, g: u8, b: u8) -> Self { Self { r, g, b } }
 }
 
-pub trait PpmFormat: Display {
+pub trait PpmFormat {
     type Atom: Copy;
 
     // Minimum implementation
@@ -121,11 +121,7 @@ pub trait PpmFormat: Display {
 
     /// Draw a circle (taxicab distance metric). Assumes that it will fit, will likely panic if it
     /// doesn't
-    fn save_to_file(&self, filepath: impl Into<PathBuf>) -> Result<(), std::io::Error> {
-        let mut file = File::create(filepath.into())?;
-        file.write_all(format!("{}", self).as_bytes())?;
-        Ok(())
-    }
+    fn save_to_file(&self, filepath: impl Into<PathBuf>) -> Result<(), std::io::Error>;
 }
 
 /// Basic image file type
@@ -151,6 +147,20 @@ impl PpmFormat for ImagePPM {
     fn atoms(&self) -> &Vec<Pixel> { &self.atoms }
     fn atoms_mut(&mut self) -> &mut Vec<Pixel> { &mut self.atoms }
 
+    /// This uses write! instead of println!, which panics instead of erroring on failure. However,
+    /// I'm planning to unwrap the error anyway, so literally whatever lmao
+    fn save_to_file(&self, filepath: impl Into<PathBuf>) -> Result<(), std::io::Error> {
+        let file = File::create(filepath.into())?;
+        let mut writer = BufWriter::new(file);
+
+        write!(writer, "P3\n{} {}\n255\n", self.width, self.height).unwrap();
+
+        for &Pixel {r, g, b} in &self.atoms {
+            write!(writer, "{:3} {:3} {:3}\n", r, g, b).unwrap();
+        }
+        Ok(())
+    }
+
 }
 
 impl PpmFormat for ImagePBM {
@@ -161,28 +171,18 @@ impl PpmFormat for ImagePBM {
     fn height(&self) -> usize { self.height }
     fn atoms(&self) -> &Vec<bool> { &self.atoms }
     fn atoms_mut(&mut self) -> &mut Vec<Self::Atom> { &mut self.atoms }
-}
 
+    /// This uses write! instead of println!, which panics instead of erroring on failure. However,
+    /// I'm planning to unwrap the error anyway, so literally whatever lmao
+    fn save_to_file(&self, filepath: impl Into<PathBuf>) -> Result<(), std::io::Error> {
+        let file = File::create(filepath.into())?;
+        let mut writer = BufWriter::new(file);
 
-impl fmt::Display for ImagePPM {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut out = String::with_capacity(self.width * self.height * (3 * 4) + 40);
-        out.push_str(&format!("P3\n{} {}\n255\n", self.width, self.height));
+        write!(writer, "P1\n{} {}\n", self.width, self.height).unwrap();
 
-        for pixel in &self.atoms { out.push_str(&format!("{:3} {:3} {:3}\n", pixel.r, pixel.g, pixel.b)); }
+        for &b in &self.atoms { writer.write(&[if b { b'0' } else { b'1' }])?; }
 
-        write!(f, "{}", out)
-    }
-}
-
-impl fmt::Display for ImagePBM {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut out = String::with_capacity(self.width * self.height + 20);
-        out.push_str(&format!("P1\n{} {}\n", self.width, self.height));
-
-        for pixel in &self.atoms { out.push_str(&format!("{}", !pixel as usize)); }
-        out.push('\n');
-
-        write!(f, "{}", out)
+        writer.flush().unwrap();
+        Ok(())
     }
 }
