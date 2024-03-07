@@ -77,6 +77,8 @@ pub trait PpmFormat {
         Some(&mut self.atoms_mut()[i])
     }
 
+    /// Draw a circle (taxicab distance metric). Assumes that it will fit, will likely panic if it
+    /// doesn't
     fn draw_circle(&mut self, center: Coord, radius: usize, col: Self::Atom) {
         let r = radius as isize / 2;
         for dx in -r..r {
@@ -119,8 +121,8 @@ pub trait PpmFormat {
         *self.get_mut(b.x, b.y).unwrap() = col;
     }
 
-    /// Draw a circle (taxicab distance metric). Assumes that it will fit, will likely panic if it
-    /// doesn't
+    /// Save created image at `./$filepath` if possible in the corresponding format (the format
+    /// suffix is not automatically added).
     fn save_to_file(&self, filepath: impl Into<PathBuf>) -> Result<(), std::io::Error>;
 }
 
