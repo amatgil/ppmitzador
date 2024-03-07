@@ -125,12 +125,14 @@ pub trait PpmFormat {
 }
 
 /// Basic image file type
+#[derive(Clone, Debug)]
 pub struct ImagePPM {
     atoms: Vec<Pixel>,
     width: usize,
     height: usize,
 }
 
+#[derive(Clone, Debug)]
 pub struct ImagePBM {
     /// False for background (black), true for foreground (white)
     atoms: Vec<bool>,
